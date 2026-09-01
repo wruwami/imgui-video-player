@@ -31,6 +31,15 @@ if(NOT TARGET glfw)
   message(FATAL_ERROR "glfw3 target not found")
 endif()
 
+# ---------------------------------------------------------------------------
+# FFmpeg — vcpkg's ffmpeg port has no CMake config; use the pkg-config
+# modules it installs instead (the vcpkg toolchain wires up PKG_CONFIG_PATH).
+# ---------------------------------------------------------------------------
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(AVCODEC REQUIRED IMPORTED_TARGET libavcodec)
+pkg_check_modules(AVFORMAT REQUIRED IMPORTED_TARGET libavformat)
+pkg_check_modules(AVUTIL REQUIRED IMPORTED_TARGET libavutil)
+
 add_library(imgui STATIC
   ${imgui_SOURCE_DIR}/imgui.cpp
   ${imgui_SOURCE_DIR}/imgui_draw.cpp
@@ -55,13 +64,19 @@ add_executable(imgui-video-player
   src/platform/window.cpp
   src/render/d3d11_renderer.cpp
   src/app/app.cpp
-  src/ui/ui.cpp)
+  src/ui/ui.cpp
+  src/media/demuxer.cpp
+  src/media/decoder.cpp
+  src/media/file_source.cpp)
 
 target_include_directories(imgui-video-player PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(imgui-video-player PRIVATE
   imgui
   spdlog::spdlog
-  nlohmann_json::nlohmann_json)
+  nlohmann_json::nlohmann_json
+  PkgConfig::AVCODEC
+  PkgConfig::AVFORMAT
+  PkgConfig::AVUTIL)
 
 if(MSVC)
   target_compile_options(imgui-video-player PRIVATE /W4 /utf-8 /MP)
