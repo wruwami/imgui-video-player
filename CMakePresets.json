@@ -18,6 +18,18 @@
         "VCPKG_TARGET_TRIPLET": "x64-windows"
       },
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    },
+    {
+      "name": "windows-ci",
+      "inherits": "base",
+      "displayName": "Windows CI (Ninja, vcpkg)",
+      "generator": "Ninja",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows",
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
     }
   ],
   "buildPresets": [
@@ -25,6 +37,10 @@
       "name": "windows-default",
       "configurePreset": "windows-default",
       "configuration": "Release"
+    },
+    {
+      "name": "windows-ci",
+      "configurePreset": "windows-ci"
     }
   ]
 }

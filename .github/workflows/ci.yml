@@ -10,7 +10,7 @@ jobs:
   clang-format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install clang-format (pinned)
         run: pipx install clang-format==18.1.8
@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: clang-format
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install cppcheck
         run: sudo apt-get update && sudo apt-get install -y cppcheck
@@ -53,7 +53,12 @@ jobs:
       VCPKG_ROOT: ${{ github.workspace }}\vcpkg
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg-binary-cache
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
+      - name: Setup MSVC environment (for Ninja)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
 
       - name: Setup vcpkg (pinned to manifest baseline)
         shell: pwsh
@@ -71,7 +76,7 @@ jobs:
           restore-keys: vcpkg-windows-
 
       - name: Configure
-        run: cmake --preset windows-default
+        run: cmake --preset windows-ci
 
       - name: Build
-        run: cmake --build --preset windows-default
+        run: cmake --build --preset windows-ci
