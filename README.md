@@ -1,5 +1,7 @@
 # imgui-video-player
 
+[![CI](https://github.com/wruwami/imgui-video-player/actions/workflows/ci.yml/badge.svg)](https://github.com/wruwami/imgui-video-player/actions/workflows/ci.yml)
+
 Dear ImGui 기반 **다채널 하드웨어 가속 비디오 플레이어** (CCTV 뷰어 유형).
 
 Multi-channel hardware-accelerated video player built with Dear ImGui, FFmpeg, and platform-native renderers.
@@ -43,4 +45,6 @@ cmake --build --preset windows-default
 
 ## 라이선스
 
-TBD
+[MIT](LICENSE)
+
+CI: clang-format (Google 스타일) → cppcheck 정적 분석 → Windows 빌드, 순차 실행.

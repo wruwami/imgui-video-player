@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  # 1) 코드 포맷 검사 (clang-format, Google 스타일 — .clang-format 참조)
+  clang-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format (pinned)
+        run: pipx install clang-format==18.1.8
+
+      - name: Check formatting
+        run: |
+          FILES=$(git ls-files '*.cpp' '*.h' '*.hpp' '*.cc' '*.hh')
+          clang-format --version
+          test -n "$FILES" || { echo "no sources"; exit 0; }
+          clang-format --dry-run -Werror $FILES
+
+  # 2) 정적 분석 (cppcheck)
+  cppcheck:
+    runs-on: ubuntu-latest
+    needs: clang-format
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: sudo apt-get update && sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck
+        run: |
+          cppcheck --version
+          cppcheck \
+            --enable=warning,style,performance,portability \
+            --std=c++20 \
+            --language=c++ \
+            --inline-suppr \
+            --suppress=missingIncludeSystem \
+            --error-exitcode=1 \
+            -j$(nproc) \
+            src/
+
+  # 3) 빌드 (Windows, vcpkg 의존성 포함)
+  build:
+    runs-on: windows-latest
+    needs: cppcheck
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg-binary-cache
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup vcpkg (pinned to manifest baseline)
+        shell: pwsh
+        run: |
+          git clone --filter=blob:none https://github.com/microsoft/vcpkg.git $env:VCPKG_ROOT
+          git -C $env:VCPKG_ROOT checkout b42b19a62b63514ed9fa2a81e07ce75e613c83c0
+          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+          New-Item -ItemType Directory -Force $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
+
+      - name: Cache vcpkg binaries
+        uses: actions/cache@v4
+        with:
+          path: vcpkg-binary-cache
+          key: vcpkg-windows-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-windows-
+
+      - name: Configure
+        run: cmake --preset windows-default
+
+      - name: Build
+        run: cmake --build --preset windows-default
