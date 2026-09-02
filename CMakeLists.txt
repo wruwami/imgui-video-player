@@ -72,6 +72,7 @@ add_executable(imgui-video-player
   src/media/decoder.cpp
   src/media/channel.cpp
   src/render/d3d11_renderer.cpp
+  src/render/color_conversion.cpp
   src/render/video_texture.cpp
   src/app/app.cpp
   src/ui/ui.cpp
@@ -90,4 +91,33 @@ target_link_libraries(imgui-video-player PRIVATE
 if(MSVC)
   target_compile_options(imgui-video-player PRIVATE /W4 /utf-8 /MP)
   target_compile_definitions(imgui-video-player PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()
+
+# ---------------------------------------------------------------------------
+# Unit tests (GoogleTest). Logic only — no GPU, no media file fixtures.
+# ---------------------------------------------------------------------------
+include(CTest)
+if(BUILD_TESTING)
+  find_package(GTest CONFIG REQUIRED)
+  include(GoogleTest)  # gtest_discover_tests
+
+  add_executable(unit_tests
+    tests/test_frame_queue.cpp
+    tests/test_source_kind.cpp
+    tests/test_color_conversion.cpp
+    src/media/frame_queue.cpp
+    src/media/video_source.cpp
+    src/render/color_conversion.cpp)
+
+  target_include_directories(unit_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${FFMPEG_INCLUDE_DIR})
+  target_link_libraries(unit_tests PRIVATE GTest::gtest_main ${FFMPEG_LIBRARIES})
+
+  if(MSVC)
+    target_compile_options(unit_tests PRIVATE /W4 /utf-8 /MP)
+    target_compile_definitions(unit_tests PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+  endif()
+
+  gtest_discover_tests(unit_tests)
 endif()
