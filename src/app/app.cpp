@@ -6,8 +6,6 @@
 #include <imgui_impl_glfw.h>
 #include <spdlog/spdlog.h>
 
-#include <memory>
-
 #include "ui/ui.h"
 
 namespace vvp {
@@ -21,6 +19,9 @@ bool Application::Init() {
   if (!renderer_.Init(window_.Handle())) {
     return false;
   }
+  if (!video_texture_.Init(renderer_.Device(), renderer_.Context())) {
+    return false;
+  }
 
   GLFWwindow* win = window_.Handle();
   glfwSetWindowUserPointer(win, this);
@@ -28,12 +29,17 @@ bool Application::Init() {
     auto* self = static_cast<Application*>(glfwGetWindowUserPointer(w));
     self->renderer_.OnResize(width, height);
   });
+  glfwSetDropCallback(win, [](GLFWwindow* w, int count, const char** paths) {
+    auto* self = static_cast<Application*>(glfwGetWindowUserPointer(w));
+    for (int i = 0; i < count; ++i) {
+      self->dropped_paths_.emplace_back(paths[i]);
+    }
+  });
 
-  if (!InitImGui()) {
-    return false;
-  }
-  ui_ = Ui();
-  return true;
+  av_log_set_level(AV_LOG_WARNING);
+  avformat_network_init();  // Needed for RTSP/DASH in later milestones.
+
+  return InitImGui();
 }
 
 bool Application::InitImGui() {
@@ -69,12 +75,24 @@ void Application::Run() {
   }
 }
 
+SourceOptions Application::MakeSourceOptions() const {
+  SourceOptions options;
+  options.native_d3d11_device = renderer_.Device();
+  options.native_d3d11_context = renderer_.Context();
+  return options;
+}
+
 void Application::DrawFrame() {
   ImGui_ImplDX11_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
 
-  ui_.Draw();
+  // Consume the newest decoded frame and convert/upload it on this thread.
+  if (channel_.state() != ChannelState::kIdle) {
+    video_texture_.Update(channel_.LatestFrame());
+  }
+
+  ui_.Draw(&channel_, &video_texture_, &dropped_paths_, [this] { return MakeSourceOptions(); });
 
   ImGui::Render();
   renderer_.BeginFrame();
@@ -91,14 +109,17 @@ void Application::DrawFrame() {
 }
 
 void Application::Shutdown() {
+  channel_.Close();  // Stop decode threads before the device goes away.
   if (imgui_initialized_) {
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     imgui_initialized_ = false;
   }
+  video_texture_.Shutdown();
   renderer_.Shutdown();
   window_.Shutdown();
+  avformat_network_deinit();
 }
 
 }  // namespace vvp

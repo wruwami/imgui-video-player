@@ -48,21 +48,46 @@ if(WIN32)
 endif()
 
 # ---------------------------------------------------------------------------
+# FFmpeg (via vcpkg; no official CMake config, resolve explicitly)
+# ---------------------------------------------------------------------------
+find_path(FFMPEG_INCLUDE_DIR NAMES libavformat/avformat.h)
+foreach(_ffmpeg_lib avcodec avformat avutil swscale swresample)
+  find_library(FFMPEG_${_ffmpeg_lib}_LIBRARY NAMES ${_ffmpeg_lib})
+  if(NOT FFMPEG_${_ffmpeg_lib}_LIBRARY)
+    message(FATAL_ERROR "FFmpeg library not found: ${_ffmpeg_lib}")
+  endif()
+  list(APPEND FFMPEG_LIBRARIES ${FFMPEG_${_ffmpeg_lib}_LIBRARY})
+endforeach()
+
+# ---------------------------------------------------------------------------
 # Application
 # ---------------------------------------------------------------------------
 add_executable(imgui-video-player
   src/main.cpp
   src/platform/window.cpp
+  src/media/ffmpeg_utils.cpp
+  src/media/frame_queue.cpp
+  src/media/video_source.cpp
+  src/media/demuxer.cpp
+  src/media/decoder.cpp
+  src/media/channel.cpp
   src/render/d3d11_renderer.cpp
+  src/render/video_texture.cpp
   src/app/app.cpp
-  src/ui/ui.cpp)
+  src/ui/ui.cpp
+  src/ui/video_view.cpp)
 
-target_include_directories(imgui-video-player PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(imgui-video-player PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${FFMPEG_INCLUDE_DIR})
+
 target_link_libraries(imgui-video-player PRIVATE
   imgui
   spdlog::spdlog
-  nlohmann_json::nlohmann_json)
+  nlohmann_json::nlohmann_json
+  ${FFMPEG_LIBRARIES})
 
 if(MSVC)
   target_compile_options(imgui-video-player PRIVATE /W4 /utf-8 /MP)
+  target_compile_definitions(imgui-video-player PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 endif()
