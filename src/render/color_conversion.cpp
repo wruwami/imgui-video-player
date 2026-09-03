@@ -5,8 +5,8 @@
 namespace vvp {
 
 void FillConversionConstants(int color_range, int colorspace, int width, int height, ConversionConstants& c) {
-  // AVFrame color range: AVCOL_RANGE_JPEG = 1 (full), others = limited.
-  const bool is_full_range = color_range == 1;
+  // AVFrame color range: AVCOL_RANGE_JPEG = 2 (full), others = limited.
+  const bool is_full_range = color_range == 2;
   if (is_full_range) {
     c.offset[0] = 0.0f;
     c.offset[1] = 128.0f / 255.0f;
@@ -45,7 +45,10 @@ void FillConversionConstants(int color_range, int colorspace, int width, int hei
       const float v[3][3] = {{1.0f, 0.0f, 1.5748f}, {1.0f, -0.1873f, -0.4681f}, {1.0f, 1.8556f, 0.0f}};
       std::memcpy(m, v, sizeof(m));
     } else {
-      const float v[3][3] = {{1.1644f, 0.0f, 1.7927f}, {1.1644f, -0.2132f, -0.5329f}, {1.1644f, 2.1124f, 0.0f}};
+      // HLSL already applies the limited-range Y gain (255/219) via `scale`
+      // before the matrix multiply, so the Y column here stays 1.0 to avoid
+      // double-applying it.
+      const float v[3][3] = {{1.0f, 0.0f, 1.7927f}, {1.0f, -0.2132f, -0.5329f}, {1.0f, 2.1124f, 0.0f}};
       std::memcpy(m, v, sizeof(m));
     }
   } else {
@@ -53,7 +56,7 @@ void FillConversionConstants(int color_range, int colorspace, int width, int hei
       const float v[3][3] = {{1.0f, 0.0f, 1.4020f}, {1.0f, -0.3441f, -0.7141f}, {1.0f, 1.7720f, 0.0f}};
       std::memcpy(m, v, sizeof(m));
     } else {
-      const float v[3][3] = {{1.1644f, 0.0f, 1.5960f}, {1.1644f, -0.3918f, -0.8130f}, {1.1644f, 2.0172f, 0.0f}};
+      const float v[3][3] = {{1.0f, 0.0f, 1.5960f}, {1.0f, -0.3918f, -0.8130f}, {1.0f, 2.0172f, 0.0f}};
       std::memcpy(m, v, sizeof(m));
     }
   }

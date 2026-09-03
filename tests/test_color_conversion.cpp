@@ -9,9 +9,9 @@ using vvp::ConversionConstants;
 // AVFrame enum values (kept as raw ints here so the test documents the exact
 // domain FillConversionConstants receives from video_texture.cpp).
 constexpr int kRangeUnspecified = 0;
-constexpr int kRangeJpeg = 1;  // Full range.
-constexpr int kRangeMpeg = 2;  // Limited range.
-constexpr int kSpaceUnspecified = 0;
+constexpr int kRangeMpeg = 1;  // Limited range.
+constexpr int kRangeJpeg = 2;  // Full range.
+constexpr int kSpaceUnspecified = 2;
 constexpr int kSpaceBt709 = 1;
 constexpr int kSpaceBt470Bg = 5;
 constexpr int kSpaceSmpte170m = 6;
@@ -43,14 +43,16 @@ TEST(ConversionConstants, Bt709Limited_MatrixIsColumnMajorPadded) {
   ConversionConstants c = {};
   vvp::FillConversionConstants(kRangeMpeg, kSpaceBt709, 1920, 1080, c);
 
-  // Math matrix (row-major): rows are R/G/B output equations.
-  //   [ 1.1644    0      1.7927 ]
-  //   [ 1.1644 -0.2132  -0.5329 ]
-  //   [ 1.1644  2.1124   0      ]
+  // Math matrix (row-major): rows are R/G/B output equations. The Y column is
+  // 1.0 because HLSL already applies the limited-range gain (255/219) via
+  // `scale` before the matrix multiply.
+  //   [ 1.0    0      1.7927 ]
+  //   [ 1.0 -0.2132  -0.5329 ]
+  //   [ 1.0  2.1124   0      ]
   // Stored column-major in float4 slots: matrix[col * 4 + row].
-  EXPECT_FLOAT_EQ(c.matrix[0 * 4 + 0], 1.1644f);
-  EXPECT_FLOAT_EQ(c.matrix[0 * 4 + 1], 1.1644f);
-  EXPECT_FLOAT_EQ(c.matrix[0 * 4 + 2], 1.1644f);
+  EXPECT_FLOAT_EQ(c.matrix[0 * 4 + 0], 1.0f);
+  EXPECT_FLOAT_EQ(c.matrix[0 * 4 + 1], 1.0f);
+  EXPECT_FLOAT_EQ(c.matrix[0 * 4 + 2], 1.0f);
   EXPECT_FLOAT_EQ(c.matrix[1 * 4 + 1], -0.2132f);
   EXPECT_FLOAT_EQ(c.matrix[2 * 4 + 2], 0.0f);
   EXPECT_FLOAT_EQ(c.matrix[2 * 4 + 0], 1.7927f);
