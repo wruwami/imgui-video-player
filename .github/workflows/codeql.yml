@@ -1,0 +1,62 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # Weekly, Monday 06:00 UTC.
+
+jobs:
+  analyze:
+    name: Analyze (cpp)
+    runs-on: windows-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: cpp
+          build-mode: manual
+
+      - name: Setup MSVC environment (for Ninja)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      # vcvars (VS2026 on the runner) exports its own VCPKG_ROOT pointing
+      # into the VS install dir — pin ours at step level so it wins.
+      - name: Setup vcpkg (pinned to manifest baseline)
+        shell: pwsh
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+        run: |
+          git clone --filter=blob:none https://github.com/microsoft/vcpkg.git $env:VCPKG_ROOT
+          git -C $env:VCPKG_ROOT checkout b42b19a62b63514ed9fa2a81e07ce75e613c83c0
+          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+          New-Item -ItemType Directory -Force build-vcpkg-cache | Out-Null
+
+      - name: Restore vcpkg binaries
+        uses: actions/cache@v4
+        with:
+          path: build-vcpkg-cache
+          key: vcpkg-windows-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-windows-
+
+      - name: Build (traced by CodeQL)
+        shell: pwsh
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\build-vcpkg-cache
+        run: |
+          cmake --preset windows-ci
+          cmake --build --preset windows-ci
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:cpp"
