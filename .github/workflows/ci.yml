@@ -89,3 +89,7 @@ jobs:
         env:
           VCPKG_ROOT: ${{ github.workspace }}\vcpkg
         run: cmake --build --preset windows-ci
+
+      - name: Test
+        shell: pwsh
+        run: ctest --test-dir build/windows-ci --output-on-failure -C Release

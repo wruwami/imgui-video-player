@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "media/ffmpeg_utils.h"
+#include "render/color_conversion.h"
 
 namespace vvp {
 namespace {
@@ -55,14 +56,6 @@ float4 main(PSIn i) : SV_Target {
 
 // Matches HLSL cbuffer packing: each float3 occupies 16 bytes; float3x3 is
 // stored column-major in three float4 slots.
-struct ConversionConstants {
-  float offset[3];
-  float pad0_;
-  float scale[3];
-  float pad1_;
-  float matrix[12];
-};
-
 // Color metadata snapshot used to detect conversion-constant changes.
 struct FrameMeta {
   int color_range;
@@ -73,67 +66,6 @@ struct FrameMeta {
     return color_range == o.color_range && colorspace == o.colorspace && width == o.width && height == o.height;
   }
 };
-
-// Fills constants for the frame's colorspace/range. Falls back to a sensible
-// default when the stream does not declare color metadata.
-void FillConversionConstants(const AVFrame* frame, ConversionConstants& c) {
-  const bool is_full_range = frame->color_range == AVCOL_RANGE_JPEG;
-  if (is_full_range) {
-    c.offset[0] = 0.0f;
-    c.offset[1] = 128.0f / 255.0f;
-    c.offset[2] = 128.0f / 255.0f;
-    c.scale[0] = 1.0f;
-    c.scale[1] = 1.0f;
-    c.scale[2] = 1.0f;
-  } else {
-    c.offset[0] = 16.0f / 255.0f;
-    c.offset[1] = 128.0f / 255.0f;
-    c.offset[2] = 128.0f / 255.0f;
-    c.scale[0] = 255.0f / 219.0f;
-    c.scale[1] = 1.0f;
-    c.scale[2] = 1.0f;
-  }
-
-  // Pick the YUV matrix: frame metadata first, resolution heuristic second.
-  bool bt709 = frame->height >= 720;
-  switch (frame->colorspace) {
-    case AVCOL_SPC_BT709:
-      bt709 = true;
-      break;
-    case AVCOL_SPC_BT470BG:
-    case AVCOL_SPC_SMPTE170M:
-      bt709 = false;
-      break;
-    default:
-      break;
-  }
-
-  // Rows of Y'UV -> RGB with Y' in [0,1], UV in [-0.5,0.5] after scaling.
-  float m[3][3];
-  if (bt709) {
-    if (is_full_range) {
-      const float v[3][3] = {{1.0f, 0.0f, 1.5748f}, {1.0f, -0.1873f, -0.4681f}, {1.0f, 1.8556f, 0.0f}};
-      std::memcpy(m, v, sizeof(m));
-    } else {
-      const float v[3][3] = {{1.1644f, 0.0f, 1.7927f}, {1.1644f, -0.2132f, -0.5329f}, {1.1644f, 2.1124f, 0.0f}};
-      std::memcpy(m, v, sizeof(m));
-    }
-  } else {
-    if (is_full_range) {
-      const float v[3][3] = {{1.0f, 0.0f, 1.4020f}, {1.0f, -0.3441f, -0.7141f}, {1.0f, 1.7720f, 0.0f}};
-      std::memcpy(m, v, sizeof(m));
-    } else {
-      const float v[3][3] = {{1.1644f, 0.0f, 1.5960f}, {1.1644f, -0.3918f, -0.8130f}, {1.1644f, 2.0172f, 0.0f}};
-      std::memcpy(m, v, sizeof(m));
-    }
-  }
-  // HLSL float3x3 is column-major in memory; transpose rows into columns.
-  for (int col = 0; col < 3; ++col) {
-    for (int row = 0; row < 3; ++row) {
-      c.matrix[col * 4 + row] = m[row][col];
-    }
-  }
-}
 
 Microsoft::WRL::ComPtr<ID3D11Buffer> MakeConstantBuffer(ID3D11Device* device, UINT size) {
   D3D11_BUFFER_DESC desc = {};
@@ -364,7 +296,7 @@ bool VideoTexture::ConvertHardwareFrame(const AVFrame* frame) {
   const FrameMeta meta{frame->color_range, frame->colorspace, frame->width, frame->height};
   if (!(meta == last_meta)) {
     ConversionConstants c = {};
-    FillConversionConstants(frame, c);
+    FillConversionConstants(frame->color_range, frame->colorspace, frame->width, frame->height, c);
     context_->UpdateSubresource(conversion_cbuffer_.Get(), 0, nullptr, &c, 0, 0);
     last_meta = meta;
   }
