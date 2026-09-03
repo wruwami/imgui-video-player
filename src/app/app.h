@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "media/channel.h"
+#include "app/channel_manager.h"
 #include "platform/window.h"
 #include "render/d3d11_renderer.h"
 #include "render/video_texture.h"
@@ -26,17 +26,21 @@ class Application {
   void Shutdown();
 
   // Starts playing a url/file immediately (e.g. from the command line).
-  void OpenSource(const std::string& url) { channel_.Open(url, MakeSourceOptions()); }
+  void OpenSource(const std::string& url);
 
  private:
   bool InitImGui();
   void DrawFrame();
   SourceOptions MakeSourceOptions() const;
 
+  // The UI currently drives channel #0 (multi-channel UI arrives with the
+  // grid work, issue #9/#10).
+  Channel& channel() { return *channels_.Get(0); }
+
   Window window_;
   D3D11Renderer renderer_;
   VideoTexture video_texture_;
-  Channel channel_;
+  ChannelManager channels_;
   Ui ui_;
   std::vector<std::string> dropped_paths_;
   bool imgui_initialized_ = false;

@@ -4,6 +4,7 @@
   "description": "Multi-channel hardware-accelerated video player built with Dear ImGui + FFmpeg",
   "dependencies": [
     "glfw3",
+    "gtest",
     "spdlog",
     "nlohmann-json",
     {

@@ -34,7 +34,7 @@ Multi-channel hardware-accelerated video player built with Dear ImGui, FFmpeg, a
 - [ ] **M5** DASH, SW 폴백 고도화, 16채널 벤치
 - [ ] **M6** macOS(Metal) / Linux(OpenGL) 이식
 
-설계 문서: [docs/architecture.md](docs/architecture.md) · UI 와이어프레임: [docs/wireframes.md](docs/wireframes.md)
+설계 문서: [docs/architecture.md](docs/architecture.md) · UI 와이어프레임: [docs/wireframes.md](docs/wireframes.md) · 테스트: [docs/testing.md](docs/testing.md)
 프로젝트 원칙: [CLAUDE.md](CLAUDE.md) · AI 에이전트 규칙: [AGENTS.md](AGENTS.md)
 
 ## 빌드 (Windows, 예정)
