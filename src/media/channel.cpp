@@ -49,7 +49,11 @@ bool Channel::Open(const std::string& url, const SourceOptions& options) {
 }
 
 void Channel::Close() {
-  if (running_.exchange(false) && worker_.joinable()) {
+  running_.store(false, std::memory_order_relaxed);
+  // The worker may have exited on its own (e.g. failed to open the source);
+  // join whenever the thread object is still joinable — a joinable
+  // std::thread destructor would call std::terminate.
+  if (worker_.joinable()) {
     queue_.Close();
     worker_.join();
   }

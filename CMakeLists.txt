@@ -65,6 +65,8 @@ endforeach()
 add_executable(imgui-video-player
   src/main.cpp
   src/platform/window.cpp
+  src/app/channel_manager.cpp
+  src/app/channel_manager.cpp
   src/media/ffmpeg_utils.cpp
   src/media/frame_queue.cpp
   src/media/video_source.cpp
@@ -105,6 +107,12 @@ if(BUILD_TESTING)
     tests/test_frame_queue.cpp
     tests/test_source_kind.cpp
     tests/test_color_conversion.cpp
+    tests/test_channel_manager.cpp
+    src/app/channel_manager.cpp
+    src/media/channel.cpp
+    src/media/decoder.cpp
+    src/media/demuxer.cpp
+    src/media/ffmpeg_utils.cpp
     src/media/frame_queue.cpp
     src/media/video_source.cpp
     src/render/color_conversion.cpp)
@@ -112,7 +120,7 @@ if(BUILD_TESTING)
   target_include_directories(unit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${FFMPEG_INCLUDE_DIR})
-  target_link_libraries(unit_tests PRIVATE GTest::gtest_main ${FFMPEG_LIBRARIES})
+  target_link_libraries(unit_tests PRIVATE GTest::gtest_main spdlog::spdlog ${FFMPEG_LIBRARIES})
 
   if(MSVC)
     target_compile_options(unit_tests PRIVATE /W4 /utf-8 /MP)

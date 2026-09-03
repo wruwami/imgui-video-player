@@ -22,6 +22,7 @@ bool Application::Init() {
   if (!video_texture_.Init(renderer_.Device(), renderer_.Context())) {
     return false;
   }
+  channels_.AddIdle();
 
   GLFWwindow* win = window_.Handle();
   glfwSetWindowUserPointer(win, this);
@@ -75,6 +76,8 @@ void Application::Run() {
   }
 }
 
+void Application::OpenSource(const std::string& url) { channel().Open(url, MakeSourceOptions()); }
+
 SourceOptions Application::MakeSourceOptions() const {
   SourceOptions options;
   options.native_d3d11_device = renderer_.Device();
@@ -88,11 +91,12 @@ void Application::DrawFrame() {
   ImGui::NewFrame();
 
   // Consume the newest decoded frame and convert/upload it on this thread.
-  if (channel_.state() != ChannelState::kIdle) {
-    video_texture_.Update(channel_.LatestFrame());
+  Channel& channel = this->channel();
+  if (channel.state() != ChannelState::kIdle) {
+    video_texture_.Update(channel.LatestFrame());
   }
 
-  ui_.Draw(&channel_, &video_texture_, &dropped_paths_, [this] { return MakeSourceOptions(); });
+  ui_.Draw(&channel, &video_texture_, &dropped_paths_, [this] { return MakeSourceOptions(); });
 
   ImGui::Render();
   renderer_.BeginFrame();
@@ -109,7 +113,7 @@ void Application::DrawFrame() {
 }
 
 void Application::Shutdown() {
-  channel_.Close();  // Stop decode threads before the device goes away.
+  channels_.RemoveAll();  // Stop decode threads before the device goes away.
   if (imgui_initialized_) {
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplGlfw_Shutdown();
